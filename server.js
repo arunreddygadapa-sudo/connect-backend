@@ -2,66 +2,78 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const mongoose = require('mongoose'); // The new MongoDB translator
 
 const app = express();
-app.use(cors()); // Unlocks the API for Chrome!
+app.use(cors());
+app.use(express.json());
 
 const server = http.createServer(app);
-
 const io = new Server(server, {
     cors: { origin: "*" }
 });
 
-app.use(express.json());
+// --- DATABASE CONNECTION ---
+// Paste your string from Notepad right here between the quotes!
+const mongoURI = "mongodb+srv://arunreddygadapa_db_user:<db_password>@connectcluster.w5stg07.mongodb.net/?appName=ConnectCluster";
 
-// We are keeping your old pricing API alive so the Passenger app can still calculate prices
-app.post('/api/ride/request', (req, res) => {
+mongoose.connect(mongoURI)
+    .then(() => console.log("✅ Connected to MongoDB Cloud!"))
+    .catch(err => console.log("❌ MongoDB Connection Error:", err));
+
+// --- DATABASE SCHEMA (The Memory Structure) ---
+const RideSchema = new mongoose.Schema({
+    fare: Number,
+    distance: String,
+    timestamp: { type: Date, default: Date.now },
+    status: { type: String, default: 'requested' }
+});
+const Ride = mongoose.model('Ride', RideSchema);
+
+// --- ROUTES ---
+app.post('/api/ride/request', async (req, res) => {
     const { distanceKm } = req.body;
-    let baseFare = 50;
-    let perKmRate = 18;
-    let finalFare = Math.round((baseFare + (distanceKm * perKmRate)) * 1.2);
+    const fare = Math.round(distanceKm * 15 + 50);
 
-    res.json({
-        message: "API Price Calculated",
-        estimatedFare: finalFare,
-        rideClass: "CONNECT Premium"
-    });
+    try {
+        // Save the new ride to the cloud database!
+        const newRide = new Ride({ fare, distance: distanceKm.toFixed(1) });
+        await newRide.save();
+        console.log("💾 Ride saved to database!");
+
+        res.json({
+            estimatedFare: fare,
+            rideClass: "CONNECT PREMIUM",
+            rideId: newRide._id
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to save ride" });
+    }
 });
 
-// --- THE NEW MAGIC: REAL-TIME WEBSOCKETS ---
+// --- SOCKETS ---
 io.on('connection', (socket) => {
-    console.log('📱 A new device connected! ID:', socket.id);
+    console.log(`📱 A device connected: ${socket.id}`);
 
-    // 1. Listen for when a Driver goes online
     socket.on('driver_online', () => {
-        console.log('🚕 A CONNECT Driver went ONLINE.');
+        console.log("🚕 Driver is online and waiting...");
     });
 
-    // 2. Listen for when a Passenger confirms a ride
-    socket.on('passenger_request_ride', (rideData) => {
-        console.log(`🚨 NEW RIDE! Passenger requesting ${rideData.distance}km trip for ₹${rideData.fare}`);
-        
-        // INSTANTLY broadcast this exact ride to all connected Drivers
-        socket.broadcast.emit('incoming_ride_offer', rideData);
+    socket.on('passenger_request_ride', (data) => {
+        console.log("🚨 NEW RIDE REQUESTED:", data);
+        io.emit('incoming_ride_offer', data);
     });
 
-    // 3. Listen for live GPS updates from the Driver and broadcast them
-    socket.on('driver_location_update', (locationData) => {
-        console.log('📍 Driver moved:', locationData);
-        
-        // Forward the exact coordinates to the Passenger App
-        socket.broadcast.emit('live_tracking_update', locationData);
+    socket.on('driver_location_update', (coords) => {
+        io.emit('live_tracking_update', coords);
     });
 
     socket.on('disconnect', () => {
-        console.log('❌ Device disconnected:', socket.id);
+        console.log("❌ Device disconnected");
     });
 });
 
-// --- CLOUD DEPLOYMENT UPGRADE ---
-// Use the cloud provider's port, or default to 3000 if running locally
 const PORT = process.env.PORT || 3000;
-
 server.listen(PORT, () => {
-    console.log(`🚀 CONNECT Real-Time Server running on port ${PORT}`);
+    console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`);
 });
