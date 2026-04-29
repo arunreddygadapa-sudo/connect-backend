@@ -14,7 +14,7 @@ const io = new Server(server, {
 });
 
 // --- DATABASE CONNECTION ---
-const mongoURI = "mongodb+srv://arunreddygadapa_db_user:gb0rtfBbfuSiiI7q@connectcluster.w5stg07.mongodb.net/?appName=ConnectCluster";
+const mongoURI = "mongodb+srv://arunreddygadapa_db_user:arunrooh2001@connectcluster.w5stg07.mongodb.net/?appName=ConnectCluster";
 
 mongoose.connect(mongoURI)
     .then(() => console.log("✅ Connected to MongoDB Cloud!"))
