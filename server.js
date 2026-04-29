@@ -14,8 +14,7 @@ const io = new Server(server, {
 });
 
 // --- DATABASE CONNECTION ---
-// Paste your string from Notepad right here between the quotes!
-const mongoURI = "mongodb+srv://arunreddygadapa_db_user:gb0rtfBbfuSiil7q@connectcluster.w5stg07.mongodb.net/?appName=ConnectCluster";
+const mongoURI = "mongodb+srv://arunreddygadapa_db_user:gb0rtfBbfuSiiI7q@connectcluster.w5stg07.mongodb.net/?appName=ConnectCluster";
 
 mongoose.connect(mongoURI)
     .then(() => console.log("✅ Connected to MongoDB Cloud!"))
